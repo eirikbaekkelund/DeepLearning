@@ -1,7 +1,8 @@
 import torch
 import numpy as np
-import math
 import time
+# TODO remove the matplotlib import
+import matplotlib.pyplot as plt
 
 def generate_data(w, sample_size, x_range=[-20,20], std_dev=0.2): 
     """ 
@@ -47,12 +48,12 @@ def fit_polynomial_sgd(x, t, M, lr, batch_size):
     same arguments as fit_polynomial_ls in addition to the learning rate and the batch size.
     """
     w = torch.randn(M, requires_grad=True)
-    #w = torch.tensor(torch.randn(M).clone().detach(), requires_grad=True) 
     optimizer = torch.optim.SGD([w], lr=lr)
 
     n_batches = len(x) // batch_size
     losses = []
-    for _ in range(1000):
+    print_freq = 10
+    for epoch in range(100):
         permutation = torch.randperm(len(x))
         for i in range(n_batches):
             indices = permutation[i*batch_size:(i+1)*batch_size]
@@ -63,10 +64,15 @@ def fit_polynomial_sgd(x, t, M, lr, batch_size):
             loss.backward()
             losses.append(loss.item())
             optimizer.step()
+
+        # if epoch % print_freq == 0:
+        #     print(f"Epoch: {epoch}, Loss: {loss.item()}")
+        
+        plt.plot(losses)
     
     return w
 
-def print_report(M, w=torch.tensor([1,2,3,4,5], dtype=torch.float32), lr=2.377e-10, batch_size=None,sample_size = [50,100], method='sgd'):
+def print_report(M, w=torch.tensor([1,2,3,4,5], dtype=torch.float32), lr=2.377e-5, batch_size=None,sample_size = [50,100], method='sgd'):
     """ 
     Print the mean and the standard deviation in difference between the observed training data
     and the underlying true polynomial function for the stochastic gradient descent/LS method.
@@ -99,13 +105,13 @@ def print_report(M, w=torch.tensor([1,2,3,4,5], dtype=torch.float32), lr=2.377e-
             w_pred = fit_polynomial_sgd(x, t, M, lr, batch_size)
 
         print("True weights: \t\t\t\t\t", w.numpy().tolist())
-        print("Predicted weights: \t\t\t\t", [round(elem, 3) for elem in w_pred.detach().numpy().tolist()])
-        print("Difference between true and predicted weights: ", [round(elem, 3) for elem in (w - w_pred).detach().numpy().tolist()])
+        print("Predicted weights: \t\t\t\t", [round(elem, 4) for elem in w_pred.detach().numpy().tolist()])
+        print("Difference between true and predicted weights: \t", [round(elem, 4) for elem in (w - w_pred).detach().numpy().tolist()])
 
         print("Mean difference between true and predicted weights: \t\t\t", round(torch.mean(w - w_pred).detach().numpy().tolist(), 4))
-        print("Standard deviation of difference between true and predicted weights: \t", round(torch.std(w - w_pred).detach().numpy().tolist(),4))
-        print("Difference between true and predicted values: \t\t\t\t", round(torch.mean(torch.abs(polynomial_func(x, w) - polynomial_func(x, w_pred))).detach().numpy().tolist(),4) )
-        print("Standard deviation of difference between true and predicted values: \t", round(torch.std(torch.abs(polynomial_func(x, w) - polynomial_func(x, w_pred))).detach().numpy().tolist(),4))
+        print("Standard deviation of difference between true and predicted weights: \t", round(torch.std(w - w_pred).detach().numpy().tolist(),4), '\n')
+        print("Mean Difference between true and predicted values: \t\t\t", round(torch.mean(polynomial_func(x, w) - polynomial_func(x, w_pred)).detach().numpy().tolist(),4) )
+        print("Standard deviation of difference between true and predicted values: \t", round(torch.std(polynomial_func(x, w) - polynomial_func(x, w_pred)).detach().numpy().tolist(),4))
         print("--------------------------------------------------------------------------------\n")
 
 def compare_speed(M, w=torch.tensor([1,2,3,4,5], dtype=torch.float32), sample_size = [50,100]):
@@ -120,12 +126,12 @@ def compare_speed(M, w=torch.tensor([1,2,3,4,5], dtype=torch.float32), sample_si
         print("--------------------------------------------------------------------------------")
 
         start = time.time()
-        w_ls = fit_polynomial_ls(x, t, M)
+        fit_polynomial_ls(x, t, M)
         end = time.time()
         print("Least Squares Method: ", end - start, "seconds")
 
         start = time.time()
-        w_sgd = fit_polynomial_sgd(x, t, M, lr=2.377e-10, batch_size=10)
+        fit_polynomial_sgd(x, t, M, lr=2.377e-10, batch_size=10)
         end = time.time()
         print("Stochastic Gradient Descent Method: ", end - start, "seconds")
         print("--------------------------------------------------------------------------------\n")
@@ -186,11 +192,17 @@ def report_M(M_range, lrs, batch_size, w=torch.tensor([1,2,3,4,5], dtype=torch.f
         print("M:", M)
         print("Learning rate:", lr)
         print("Loss:", loss)
-        print("--------------------------------------------------------------------------------\n")
+        print("\n")
 
 if __name__ == '__main__':
-    print_report(M=5, lr=2.377e-10, batch_size=10, method='sgd')
     print_report(M=5, method='ls')
+    print('\n')
+    print_report(M=5, w= torch.tensor(np.arange(1,6), dtype=torch.float32), lr=2.377e-10, batch_size=10, method='sgd')
+    print('\n')
     compare_speed(M=5)
-    print_learnead_M(M_range=[i for i in range(1, 11)], lrs= [2e-2, 1e-3, 2e-5, 2e-8, 2e-10, 2e-18, 2e-22, 2e-24, 2e-26, 2e-28], batch_size = 10)
-    report_M(M_range=[i for i in range(1, 11)], lrs=[2e-2, 1e-3, 2e-5, 2e-8, 2e-10, 2e-18, 2e-22, 2e-24, 2e-26, 2e-28], batch_size = 10)
+    lr_schedule = [2e-2, 1e-3, 2e-5, 2e-8, 2e-10, 2e-18, 2e-22, 2e-24, 2e-26, 2e-28]
+    # lr_schedule = [2e-2, 1e-3, 2e-5, 2e-5, 2e-5, 2e-5, 2e-5, 2e-5, 2e-5, 2e-8]
+    print('\n')
+    print_learnead_M(M_range=[i for i in range(1, 11)], lrs= [2e-2, 1e-3, 2e-5, 2e-8, 2e-10, 2e-18, 2e-22, 2e-24, 2e-26, 2e-28], batch_size = 30)
+    print('\n')
+    report_M(M_range=[i for i in range(1, 11)], lrs=[2e-2, 1e-3, 2e-5, 2e-8, 2e-10, 2e-18, 2e-22, 2e-24, 2e-26, 2e-28], batch_size = 30)

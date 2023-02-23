@@ -217,6 +217,7 @@ with warnings.catch_warnings():
                 best_M = M + 1
                 best_lr = lr
             print('\n')
+        
         return best_M, best_lr, best_loss
 
     def print_learnead_M(M_range, lrs, batch_size):
@@ -254,16 +255,12 @@ with warnings.catch_warnings():
 
 
     if __name__ == '__main__':
-        # print_report(M=5, method='ls')
-
         print_header()
         print_weights_and_errors()
         print_test_results()
         print_speed_comparison()
-        
+
         # lr_schedule = [2e-2, 1e-3, 2e-5, 2e-8, 2e-10, 2e-18, 2e-22, 2e-24, 2e-26, 2e-28]
         # lr_schedule = [2e-2, 1e-3, 2e-5, 2e-5, 2e-5, 2e-5, 2e-5, 2e-5, 2e-5, 2e-8]
-        # print('\n')
         # print_learnead_M(M_range=[i for i in range(1, 6)], lrs= [2e-2, 1e-3, 2e-5, 2e-8, 2e-10], batch_size = 10)
-        # print('\n')
         # report_M(M_range=[i for i in range(1, 11)], lrs=[2e-2, 1e-3, 2e-5, 2e-8, 2e-10], batch_size = 10)

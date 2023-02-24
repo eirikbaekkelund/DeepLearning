@@ -200,8 +200,3 @@ with warnings.catch_warnings():
         print_weights_and_errors()
         print_test_results()
         print_speed_comparison()
-
-        # lr_schedule = [2e-2, 1e-3, 2e-5, 2e-8, 2e-10, 2e-18, 2e-22, 2e-24, 2e-26, 2e-28]
-        # lr_schedule = [2e-2, 1e-3, 2e-5, 2e-5, 2e-5, 2e-5, 2e-5, 2e-5, 2e-5, 2e-8]
-        # print_learnead_M(M_range=[i for i in range(1, 6)], lrs= [2e-2, 1e-3, 2e-5, 2e-8, 2e-10], batch_size = 10)
-        # report_M(M_range=[i for i in range(1, 11)], lrs=[2e-2, 1e-3, 2e-5, 2e-8, 2e-10], batch_size = 10)

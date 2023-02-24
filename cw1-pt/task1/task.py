@@ -74,7 +74,6 @@ with warnings.catch_warnings():
             permutation = torch.randperm(len(x))
             for i in range(n_batches):
                 indices = permutation[i*batch_size:(i+1)*batch_size]
-                # t_batch = t[indices]
                 t_batch = t.rename(None)[indices]
                 x_batch = x[indices]
                 optimizer.zero_grad()
@@ -195,64 +194,6 @@ with warnings.catch_warnings():
         print(f'| Times  \t | \t {round(times_ls[1],3)} [s] \t | \t {round(times_sgd[1],3)} [s]\t | \t {sample_size[1]}')
         print('--------------------------------------------------------------------------------')
         print('\n')
-
-    def learn_M(M_range, lrs, batch_size):
-        """ 
-        Returns the M that minimizes the loss for the stochastic gradient descent method.
-        """
-        losses = []
-        best_loss = np.inf
-        best_M = np.inf
-        best_lr = np.inf
-
-        for M, lr in zip(M_range,lrs):
-            x_train, t_train, x_test, t_test = generate_data(train_size=100)
-            print(f'Degree data polynomial = {M+1} \t|\t lr = {lr} \t|\t batch_size = {batch_size}')
-            print('--------------------------------------------------------------------------------\n')
-            w = fit_polynomial_sgd(x_train, t_train, M+1, lr, batch_size)
-            loss = torch.mean(torch.square(polynomial_func(x_test, w) - t_test))
-            losses.append(loss.item())
-            if loss < best_loss:
-                best_loss = loss
-                best_M = M + 1
-                best_lr = lr
-            print('\n')
-        
-        return best_M, best_lr, best_loss
-
-    def print_learnead_M(M_range, lrs, batch_size):
-        """ 
-        Print the M that minimizes the loss for the stochastic gradient descent method.
-        """
-        print("M that minimizes the loss for the stochastic gradient descent method:\n")
-        print("--------------------------------------------------------------------------------\n")
-        print("Batch size:", batch_size)
-        print("--------------------------------------------------------------------------------\n")
-        print("M (degree):", learn_M(M_range, lrs, batch_size)[0])
-        print("--------------------------------------------------------------------------------")
-
-    def report_M(M_range, lrs, batch_size, sample_size = [50,100]):
-        """ 
-        Print the mean and the standard deviation in difference between the observed training data
-        and the underlying true polynomial function for the stochastic gradient descent method.
-        It also prints the difference between the predicted sgd values and the underlying true polynomial.
-        """
-        print("--------------------------------------------------------------------------------\n")
-        print("M that minimizes the loss for the stochastic gradient descent method:\n")
-        print("--------------------------------------------------------------------------------\n")
-        print("Batch size:", batch_size)
-        for sample in sample_size:
-            print('--------------------------------------------------------------------------------\n')
-            print("Sample size:", sample)   
-            print("--------------------------------------------------------------------------------\n")
-            M, _, loss = learn_M(M_range, lrs, batch_size)
-            print("--------------------------------------------------------------------------------")
-            print(f"Best M (degree of polynomial):  {M}\t| Best Loss = {loss}\t| Sample size = {sample}")
-            print("--------------------------------------------------------------------------------")
-            # print("Learning rate:", lr)
-            # print("Loss:", loss)
-            print("\n")
-
 
     if __name__ == '__main__':
         print_header()

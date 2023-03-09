@@ -1,120 +1,106 @@
 import torch
 from task import generate_data, polynomial_func
-import matplotlib.pyplot as plt
 
-def ridge_loss(y, t, w, lmbda):
-    """ 
-    Ridge loss to emphasize the importance of the weights and powers of the polynomial.
-    
-    Args:
-        y (torch.Tensor): Predicted values.
-        t (torch.Tensor): Target values.
-        w (torch.Tensor): Weights of the polynomial.
-        lmbda (float): Regularization parameter.
-    Returns:
-        torch.Tensor: Ridge loss.
-    """
-    return torch.mean(torch.square((y - t))) + lmbda * torch.norm(w, p=2)
+def mse_loss(x, t, w):
+    return torch.mean(torch.square((polynomial_func(x, w) - t)))
 
-def fit_polynomial_sgd_M(x, t, M, lr, lmbda=0.1, batch_size=5):
+def fit_polynomial_sgd_M(x, t, M_max, lr, batch_size, print_loss=False):
     """ 
-     Minibatch Stochastic Gradient Descent to fit a polynomial of degree M to the data.
+    Runs a stochastic gradient descent for fitting polynomial functions with the 
+    optimal degree. Note that M here is the length of the weight vector w,
+    However, the degree of the polynomial function is M-1.
+
     Args:
         x (torch.Tensor): Input data.
-        t (torch.Tensor): Input labels.
-        M (int): Degree of the polynomial.
+        t (torch.Tensor): Target values.
+        M_max (int): Highest degree the polynomial function can have.
         lr (float): Learning rate.
-        lmbda (float): Regularization parameter.
         batch_size (int): Batch size.
-    Returns:
-        torch.Tensor: Weights of the polynomial.
-    """
-    # Initialize parameters
-    w = torch.randn(M+1, requires_grad=True)
+        print_loss (bool): If True, the function prints the loss at each epoch.
     
-    optimizer = torch.optim.SGD([w], lr=lr)   
-    best_loss = torch.inf    
-    n_batches = len(x) // batch_size
+    Returns:
+        M (int): Optimal degree of the polynomial function.
+        w (torch.Tensor): Optimal weight vector.
+        loss (float): Loss at the end of the training.
+    """
+    w = torch.randn(M_max+1, requires_grad=True)
+    M = torch.randint(1, M_max, size=(1,), dtype=torch.float32, requires_grad=True)
+   
+    optimizer = torch.optim.SGD((w, M), lr=lr, momentum=0.9)
 
-    for _ in range(200):
+    n_batches = len(x) // batch_size
+    print_freq = 10
+
+    best_loss = torch.inf
+    mask = torch.arange(start=0, end=M_max+1, dtype=torch.float32)
+
+    print_freq = 50
+   
+    
+    for epoch in range(500):
         permutation = torch.randperm(len(x))
         for i in range(n_batches):
+            
             indices = permutation[i*batch_size:(i+1)*batch_size]
+            
             t_batch = t[indices]
             x_batch = x[indices]
+            
+            weights_mask = torch.relu(M - mask).unsqueeze(-1)
+            weights_mask = torch.clamp(weights_mask, 0, 1)
 
-            y = polynomial_func(x_batch, w)
-            # using regularization to put importance on neccessary weights and powers
-            loss = ridge_loss(y, t_batch, w, lmbda)
-            if loss < best_loss:
-                best_loss = loss
-                best_w = w
+            w_new =  weights_mask.t() * w
+            w_new = w_new.reshape(-1,)
             
             optimizer.zero_grad()
+            loss = mse_loss(x_batch, t_batch, w_new)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(w, max_norm=1)
+            torch.nn.utils.clip_grad_norm_(M, max_norm=1)
             optimizer.step()
-       
-     
-    return best_w, best_loss
-
-def print_learned_M(M_range=torch.arange(0,6), lrs=[1e-2, 1e-3, 1e-5, 1e-8, 1e-10, 1e-13], lmbdas = [100], batch_size=20):
-    """
-    Prints the report of the weights of the polynomial for different degrees M.
-
-    Args:
-        M_range (torch.Tensor): Range of degrees M.
-        lrs (list): List of learning rates.
-        lmbdas (list): List of regularization parameters.
-        batch_size (int): Batch size.
-    """
-    x_train, t_train, x_test, t_test = generate_data(100)
-    print('\n\n')
-    print(f"\t\t LEARNING DEGREE M | Batch Size: {batch_size} | RIDGE REGRESSION IN SGD")
-    print("-----------------------------------------------------------------------------------------------------------")
-    print("| M | Lambda \t | Learning Rate \t | Loss \t\t | \t Weights Vector")
-    print('-----------------------------------------------------------------------------------------------------------')
-    
-    best_loss_M = torch.inf    
-    
-    for M, lr in zip(M_range, lrs):
-        
-        best_loss = torch.inf
-        best_lmbda = torch.inf
-        best_lr = torch.inf
-   
-        for lmbda in lmbdas:
-            w, _ = fit_polynomial_sgd_M(x_train, t_train, M, lr, lmbda, batch_size)
-            loss = ridge_loss(polynomial_func(x_test, w), t_test, w, lmbda)
+            
             if loss < best_loss:
                 best_loss = loss
-                best_lmbda = lmbda
-                best_lr = lr
+                best_w = w_new
+                best_M = M.int() - 1 if torch.abs(M.int() - M) < 0.5 else M.int()
+            
+        if epoch % print_freq == 0 and print_loss:
+            M_print = M.int() - 1 if torch.abs(M.int() - M) < 0.5 else M.int()
+            print(f"| {epoch} \t | {M_print.item()} \t | {loss.item():.2f}")
     
-        w, _ = fit_polynomial_sgd_M(x_train, t_train, M, best_lr, best_lmbda, batch_size)
-        loss = ridge_loss(polynomial_func(x_test, w), t_test, w, best_lmbda)
-        
-        if best_loss < best_loss_M:
-            best_loss_M = best_loss
-            best_learned_M = M
-            best_weights_M = w
-
-        if M == 4:
-
-            print(f"| {M} | {best_lmbda} \t | {best_lr} \t\t | {round(loss.detach().numpy().tolist(),2)} \t\t |  {[round(weight, 2) for weight in w.detach().numpy().tolist()]}")
-        else:
-            print(f"| {M} | {best_lmbda} \t | {best_lr} \t\t | {round(loss.detach().numpy().tolist(),2)} \t |  {[round(weight, 2) for weight in w.detach().numpy().tolist()]}")
-
-    print("-----------------------------------------------------------------------------------------------------------")
-    print(f"| \t BEST M = {best_learned_M} \t | \t LOSS = {best_loss_M}")
-    print("-----------------------------------------------------------------------------------------------------------")
-    print('\n')
-    print('\n')
-    
-    plt.title('Test vs Prediction Scatter Plot')
-    plt.scatter(x_train, t_train, marker = 'o', label='true values')
-    plt.scatter(x_train, polynomial_func(x_train, best_weights_M).detach(), marker = 'x', label='predicted values')
-    plt.legend(loc='best')
-    plt.show()
+    return best_M, best_w
 
 if __name__ == "__main__":
-    print_learned_M(batch_size=20)
+    
+    x_train, t_train, x_test, t_test = generate_data(100)
+    
+    print('\n')
+    print('--------------------------------------------------')
+    print('|\t TASK 1A (OPTIMAL LEADING DEGREE SGD)')
+    print('--------------------------------------------------')
+    print('| Epoch  | M \t | Batch Loss ')
+    print('--------------------------------------------------')
+    
+    M, w = fit_polynomial_sgd_M(x=x_train, 
+                                t=t_train, 
+                                M_max=12, 
+                                lr=0.01, 
+                                batch_size=5, 
+                                print_loss=True)
+    loss = mse_loss(x_test, t_test, w)
+
+    print('--------------------------------------------------\n\n')
+
+    print('--------------------------------------------------------------------------------------------------')
+    print('| \t\t\t\t BEST PARAMETERS (MAX DEGREE M = 12)')
+    print('--------------------------------------------------------------------------------------------------')
+    print('| Predicted M \t | ', M.item())
+    print('--------------------------------------------------------------------------------------------------')
+    print('| True M \t | ', 4)
+    print('--------------------------------------------------------------------------------------------------')
+    print(f'| Predicted w \t |  { [ round(weight, 2) for weight in w.detach().numpy().tolist()  ] }')
+    print('--------------------------------------------------------------------------------------------------')
+    print(f'| True w \t |  { [i for i in range(1,6)]}')
+    print('--------------------------------------------------------------------------------------------------')
+    print(f'| Test Loss \t | {loss.item():.2f}')
+    print('--------------------------------------------------------------------------------------------------\n')

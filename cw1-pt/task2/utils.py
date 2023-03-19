@@ -1,16 +1,16 @@
 import os
+import random
 import warnings
-# avoid user warning from torchvision
+# avoid user warning from torchvision for importing some images from through PIL, version error
 with warnings . catch_warnings (): 
     warnings . simplefilter ( "ignore" ) 
     from PIL import Image
 
-from torchvision import transforms
-import torchvision
-from classes import MixUp
-from torch.utils.data import DataLoader
+    from torchvision import transforms
+    import torchvision
+    from torch.utils.data import DataLoader
 
-def montage_mixup_png(data, montage_type = 'train'):
+    def montage_mixup_png(data, montage_type = 'train'):
         """ 
         Creates a montage of the images in the data.
         Args:
@@ -52,9 +52,9 @@ def montage_mixup_png(data, montage_type = 'train'):
         
         return new_im
 
-def load_cifar10_data(sampling_method, batch_size=128, n_samples=60000, proportion_train=0.8):
+    def load_cifar10_data(batch_size=8):
         """ 
-        Loads the data from the MixUp class.
+        Loads the CIFAR10 dataset from torchvision.
 
         Args:
             sampling_method (int): Sampling method to use. 1 for Beta distribution and 2 for uniform distribution.
@@ -65,39 +65,12 @@ def load_cifar10_data(sampling_method, batch_size=128, n_samples=60000, proporti
             torch.utils.data.DataLoader: Training data loader.
             torch.utils.data.DataLoader: Test data loader.
         """
-        # load data
-        transform = transforms.Compose([transforms.ToTensor()])
+        transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),])
         
-        train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=False, transform=transform)
-        test_dataset = torchvision.datasets.CIFAR10(root='./data', train=False, download=False, transform=transform)
-        
-      
-        train_dataset.data = train_dataset.data[:int(n_samples*proportion_train)]
-        train_dataset.targets = train_dataset.targets[:int(n_samples*proportion_train)]
-        
-        test_dataset.data = test_dataset.data[:int(n_samples*(1-proportion_train))]
-        test_dataset.targets = test_dataset.targets[:int(n_samples*(1-proportion_train))]
-
-        # add mixup on training data when passed into loader
-        trainset_mixup = MixUp(train_dataset, sampling_method=sampling_method)
-
-        # create a loader to get the a batch of 16 images
-        train_loader = DataLoader(trainset_mixup, batch_size=16, shuffle=True, num_workers=8)
-        # get a batch of 16 images
-        img_train, _,_,_ = next(iter(train_loader))
-        # create a montage of the images to be passed to training
-        montage_mixup_png(img_train, 'train')
-
-        # normalize train and test data
-        transform = transforms.Compose([transforms.ToTensor(),
-                                        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-                                        ])
-        
-        train_dataset.transform = transform
-        test_dataset.transform = transform
-
-        # TODO For user: Ensure number of workers runs on your machine
-        train_loader = DataLoader(trainset_mixup, batch_size=batch_size, shuffle=True, num_workers=8)
+        train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+        test_dataset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+    
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=8)
 
         return train_loader, test_loader

@@ -34,10 +34,10 @@ def fit_polynomial_sgd_M(x, t, M_max, lr, batch_size, print_loss=False):
     best_loss = torch.inf
     mask = torch.arange(start=0, end=M_max+1, dtype=torch.float32)
 
-    print_freq = 50
+    print_freq = 10
    
     
-    for epoch in range(500):
+    for epoch in range(100):
         permutation = torch.randperm(len(x))
         for i in range(n_batches):
             
@@ -67,6 +67,8 @@ def fit_polynomial_sgd_M(x, t, M_max, lr, batch_size, print_loss=False):
         if epoch % print_freq == 0 and print_loss:
             M_print = M.int() - 1 if torch.abs(M.int() - M) < 0.5 else M.int()
             print(f"| {epoch} \t | {M_print.item()} \t | {loss.item():.2f}")
+            print('--------------------------------------------------')
+
     
     return best_M, best_w
 
@@ -89,7 +91,7 @@ if __name__ == "__main__":
                                 print_loss=True)
     loss = mse_loss(x_test, t_test, w)
 
-    print('--------------------------------------------------\n\n')
+    print('\n')
 
     print('--------------------------------------------------------------------------------------------------')
     print('| \t\t\t\t BEST PARAMETERS (MAX DEGREE M = 12)')
@@ -103,4 +105,13 @@ if __name__ == "__main__":
     print(f'| True w \t |  { [i for i in range(1,6)]}')
     print('--------------------------------------------------------------------------------------------------')
     print(f'| Test Loss \t | {loss.item():.2f}')
-    print('--------------------------------------------------------------------------------------------------\n')
+    print('--------------------------------------------------------------------------------------------------\n\n')
+
+    
+    print(' \t\t\t\t Predicted Curve vs. True Curve')
+    print('--------------------------------------------------------------------------------------------------')
+    print('| Std Dev Test \t | \t Mean Test \t | \t Std Dev Train \t | \t Mean Train \t ')
+    print('--------------------------------------------------------------------------------------------------')
+    print(f'| {torch.std(polynomial_func(x_test, w) - t_test).item():.2f} \t | \t {torch.mean(polynomial_func(x_test, w) - t_test):.2f} \t | \t {torch.std(polynomial_func(x_train, w) - t_train).item():.2f} \t | \t {torch.mean(polynomial_func(x_train, w) - t_train).item():.2f} ')
+    print('--------------------------------------------------------------------------------------------------')
+
